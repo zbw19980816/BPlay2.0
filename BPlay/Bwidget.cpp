@@ -11,7 +11,17 @@
  * *****************************/
 Bwidget::Bwidget(QWidget *parent) : QOpenGLWidget(parent)
 {
-    TimerID = startTimer(10);
+    TimerID = startTimer(1);
+}
+
+/********************************
+ * void Bwidget::resizeEvent(QResizeEvent *event)
+ * 功能：Bwidget窗口大小变化事件
+ * *****************************/
+void Bwidget::resizeEvent(QResizeEvent *event)
+{
+    QOpenGLWidget::resizeEvent(event);
+    return;
 }
 
 /********************************
@@ -20,23 +30,22 @@ Bwidget::Bwidget(QWidget *parent) : QOpenGLWidget(parent)
  * *****************************/
 void Bwidget::timerEvent(QTimerEvent *event)
 {
+    /* widget宽高变化后重设视频显示区域 */
+    if ((WidgetWidth != width()) || (WidgetHeight != height())) {
+        WidgetWidth = width();
+        WidgetHeight = height();
+        InitMedia(false);
+    }
+
     /* update会触发paintEvent */
     this->update();
 }
 
-/********************************
- * void Bwidget::paintEvent(QPaintEvent *event)
- * 功能：绘制一帧图像
- * *****************************/
-void Bwidget::paintEvent(QPaintEvent *event)
+void Bwidget::paintPic(AVFrame* frame)
 {
-    if (Bvideo::GetInstance()->GetFrameque().frame.size() == 0) {
+    if (NULL == frame) {
         return;
     }
-
-    /* 解码数据出队列 */
-    QMutexLocker Locker(&Bvideo::GetInstance()->GetFrameque().mtx);
-    AVFrame* frame = Bvideo::GetInstance()->GetFrameque().frame.front();
 
     SwsContext *context = NULL;
     AVCodecContext *codec = Bffmpeg::GetInstance()->GetFormatContext()->streams[Bffmpeg::GetInstance()->GetVideoIndex()]->codec;
@@ -63,12 +72,7 @@ void Bwidget::paintEvent(QPaintEvent *event)
               frame->height,                /* 图像高度 */
               data,                         /* 输出的每个通道数据指针 */
               linesize);                    /* 每个通道行字节数 */
-
-    /* 释放解码数据，出队列 */
     sws_freeContext(context);
-    av_frame_unref(frame);
-    av_frame_free(&frame);
-    Bvideo::GetInstance()->GetFrameque().frame.pop_front();
 
     /* 绘制图像 */
     QPainter painter;
@@ -78,19 +82,49 @@ void Bwidget::paintEvent(QPaintEvent *event)
 
     return;
 }
+/********************************
+ * void Bwidget::paintEvent(QPaintEvent *event)
+ * 功能：绘制一帧图像
+ * *****************************/
+void Bwidget::paintEvent(QPaintEvent *event)
+{
+    if (Bvideo::GetInstance()->GetFrameque().frame.size() == 0) {
+        return;
+    }
+
+    /* 解码数据送显 */
+    QMutexLocker Locker1(&Bvideo::GetInstance()->GetFrameque().mtx);
+    QMutexLocker Locker2(&BwidgetMtx);
+    AVFrame* frame = Bvideo::GetInstance()->GetFrameque().frame.front();
+    paintPic(frame);
+
+    /* 出队列，释放上一帧解码数据(保留最后一帧数据，用于窗口大小变化后重绘) */
+    Bvideo::GetInstance()->GetFrameque().frame.pop_front();
+    if (LastFrame) {
+        av_frame_unref(LastFrame);
+        av_frame_free(&LastFrame);
+    }
+
+    LastFrame = frame;
+
+    return;
+}
 
 /********************************
- * void Bwidget::InitMedia()
- * 功能：初始化媒体画布相关信息
+ * void Bwidget::SetSize()
+ * 功能：设置显示区域
  * *****************************/
-void Bwidget::InitMedia()
+void Bwidget::SetSize()
 {
+    if (NULL == Bffmpeg::GetInstance()->GetFormatContext()) {
+        return;
+    }
     int WidgetWidth = width();          /* Bwidget宽 */
     int WidgetHeight = height();        /* Bwidget高 */
     int VideoIndex = Bffmpeg::GetInstance()->GetVideoIndex();
     int MediaWidth = Bffmpeg::GetInstance()->GetFormatContext()->streams[VideoIndex]->codec->width;     /* 视频宽 */
     int MediaHeight = Bffmpeg::GetInstance()->GetFormatContext()->streams[VideoIndex]->codec->height;   /* 视频高 */
-    
+
     BLOG("WidgetWidth[%d],WidgetHeight[%d], MediaWidth[%d], MediaHeight[%d]", WidgetWidth, WidgetHeight, MediaWidth, MediaHeight);
 
     if (((float)WidgetWidth / (float)WidgetHeight) > ((float)MediaWidth / (float)MediaHeight)) {
@@ -104,10 +138,24 @@ void Bwidget::InitMedia()
         Width = WidgetWidth;
         Height = ((float)WidgetWidth * (float)MediaHeight / (float)MediaWidth);
         X = 0;
-        Y = (WidgetHeight - Height) / 2;;
+        Y = (WidgetHeight - Height) / 2;
     }
-    
+
     BLOG("Width[%d], Height[%d], X[%d], Y[%d]", Width, Height, X, Y);
+
+    return;
+}
+
+/********************************
+ * void Bwidget::InitMedia()
+ * 功能：初始化媒体画布相关信息
+ * bool isFirst: 是否为第一次初始化画布(暂时没用到)
+ * *****************************/
+void Bwidget::InitMedia(bool isFirst)
+{
+    QMutexLocker Locker(&BwidgetMtx);
+    SetSize();
+
     if (ImageData) {
         delete ImageData;
     }
@@ -119,13 +167,16 @@ void Bwidget::InitMedia()
     /* 初始化视频区域 */
     ImageData = new uchar[Width * Height * 4];
     Image = new QImage(ImageData, Width, Height, QImage::Format_RGB32);
-    
+
     /* 初始背景为黑色 */
     QPainter pt;
     pt.begin(this);
     QColor color(0, 0, 0);
-    pt.fillRect(0, 0, WidgetWidth, WidgetHeight, color);
+    pt.fillRect(0, 0, width(), height(), color);
     pt.end();
+
+    /* 绘制最后一帧画面 */
+    paintPic(LastFrame);
 
     return;
 }

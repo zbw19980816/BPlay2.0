@@ -25,30 +25,12 @@ MainWindow::MainWindow(QWidget *parent)
     this->setWindowTitle(QString("BPlay2.0"));
 
     /* 初始化开始/停止播放按钮 */
-    OnOffBbutton = new Bbutton(":/BPlay/Image/on.png", ":/BPlay/Image/off.png");
-    OnOffBbutton->setParent(this);
-    OnOffBbutton->move(20, 545);
+    OnOffBbutton = ui->OnOffBbutton;
 
     /* 进度条和播放时长 */
     ui->BPlaySlider->setValue(0);
     ui->MediaAllTime->setText("00:00");
     ui->MediaPlayTime->setText("00:00");
-
-    /* 进度条刷新 */
-    connect(&UpdateTimer, &QTimer::timeout, [=](){
-        int TimeAll = (int)Bffmpeg::GetInstance()->GetTimeAll();
-        int Pts = (int)Bffmpeg::GetInstance()->GetAudioPts();
-
-        ui->MediaAllTime->setText(QString("%1:%2:%3").arg(TimeAll / 3600).arg((TimeAll % 3600) / 60).arg(TimeAll % 60));
-        ui->MediaPlayTime->setText(QString("%1:%2:%3").arg(Pts / 3600).arg((Pts % 3600) / 60).arg(Pts % 60));
-
-        if (!BPlaySliderPress) {
-            ui->BPlaySlider->setMaximum(TimeAll);
-            ui->BPlaySlider->setValue(Pts);
-        }
-    });
-
-    UpdateTimer.start(100);  //定视频没有播放时时器可以关闭，后期优化
 
     /* 为进度条注册事件过滤器(鼠标点击进度条任意处可准确修改滑块位置) */
     ui->BPlaySlider->installEventFilter(this);
@@ -109,6 +91,29 @@ MainWindow::MainWindow(QWidget *parent)
             BLOG("Speed_20");
         }
     });
+
+    /* BPlay2.0图标 */
+    BPlayLable = new QLabel();
+    BPlayLable->setParent(this);
+    BPlayLable->resize(QPixmap(":/BPlay/Image/BPlay.png").width(), QPixmap(":/BPlay/Image/BPlay.png").height());
+    BPlayLable->setPixmap(QPixmap(":/BPlay/Image/BPlay.png"));
+
+    /* 主窗口通用事件处理 */
+    connect(&UpdateTimer, &QTimer::timeout, [=](){
+        /* 1、进度条刷新 */
+        int TimeAll = (int)Bffmpeg::GetInstance()->GetTimeAll();
+        int Pts = (int)Bffmpeg::GetInstance()->GetAudioPts();
+
+        ui->MediaAllTime->setText(QString("%1:%2:%3").arg(TimeAll / 3600).arg((TimeAll % 3600) / 60).arg(TimeAll % 60));
+        ui->MediaPlayTime->setText(QString("%1:%2:%3").arg(Pts / 3600).arg((Pts % 3600) / 60).arg(Pts % 60));
+
+        if (!BPlaySliderPress) {
+            ui->BPlaySlider->setMaximum(TimeAll);
+            ui->BPlaySlider->setValue(Pts);
+        }
+    });
+
+    UpdateTimer.start(10);  //定视频没有播放时时器可以关闭，后期优化
 }
 
 /********************************
@@ -118,6 +123,18 @@ MainWindow::MainWindow(QWidget *parent)
 MainWindow::~MainWindow()
 {
     delete ui;
+}
+
+/********************************
+ * void MainWindow::resizeEvent(QResizeEvent *event)
+ * 功能：主窗口大小变化回调
+ * *****************************/
+void MainWindow::resizeEvent(QResizeEvent *event)
+{
+    BPlayLable->move(QPoint(this->width() / 2 - QPixmap(":/BPlay/Image/BPlay.png").width() / 2,
+                            this->height() / 2 - 35 - QPixmap(":/BPlay/Image/BPlay.png").height() / 2));
+    QMainWindow::resizeEvent(event);
+    return;
 }
 
 /********************************
@@ -205,13 +222,13 @@ void MainWindow::on_Bopenfile_btn_clicked()
     }
 
     /* 初始化画布 */
-    ui->BPlayopenGLWidget->InitMedia();
+    ui->BPlayopenGLWidget->InitMedia(true);
 
     /* 更新按钮状态(开启) */
     OnOffBbutton->SetButtonStatus(true);
     
     /* 隐藏Bplay2.0图标 */
-    ui->BPlayLable->hide();
+    BPlayLable->hide();
 
     return;
 }

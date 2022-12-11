@@ -37,5 +37,8 @@ private:
     Bbutton *OnOffBbutton;           /* 开始/停止播放按钮 */
     QTimer UpdateTimer;              /* 进度条和播放时间刷新定时器 */
     bool BPlaySliderPress = false;   /* 进度条有无按下 */
+    QLabel *BPlayLable = NULL;       /* BPlay2.0图标 */
+
+    void resizeEvent(QResizeEvent *event);
 };
 #endif // MAINWINDOW_H

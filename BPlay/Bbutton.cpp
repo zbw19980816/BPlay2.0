@@ -6,27 +6,25 @@
 #include "Bbutton.h"
 
 /********************************
- * Bbutton::Bbutton(QString Image1, QString Image2)
+ * Bbutton::Bbutton(QWidget *parent)
  * 功能：开始/暂停自定义按钮构造
- *      Image1:开启
- *      Image2:暂停
  * *****************************/
-Bbutton::Bbutton(QString Image1, QString Image2)
+Bbutton::Bbutton(QWidget *parent)
 {
-    BbuttonImage1 = Image1;
-    BbuttonImage2 = Image2;
+    BbuttonImage1 = ":/BPlay/Image/on.png";
+    BbuttonImage2 = ":/BPlay/Image/off.png";
 
     QPixmap Pix;
-    bool ret = Pix.load(Image2);  /* 默认暂停 */
+    bool ret = Pix.load(BbuttonImage2);  /* 默认暂停 */
     if (!ret) {
         BLOG( "Load Image1 fail");
         return;
     }
 
-    this->setFixedSize(Pix.width(), Pix.height());  /* 将按钮的大小设定成图片的大小 */
-    this->setStyleSheet("QPushButton{border:0px;}");  /* 设置不规则图片样式: 边界0像素 */
-    this->setIcon(Pix);   /* 设置图标 */
-    this->setIconSize(QSize(40, 40));
+    this->setFixedSize(Pix.width(), Pix.height());      /* 将按钮的大小设定成图片的大小 */
+    this->setStyleSheet("QPushButton{border:0px;}");    /* 设置不规则图片样式: 边界0像素 */
+    this->setIcon(Pix);                                 /* 设置图标 */
+    this->setIconSize(QSize(30, 30));
 }
 
 /********************************
