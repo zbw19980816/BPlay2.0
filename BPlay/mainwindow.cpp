@@ -7,6 +7,7 @@
 #include "ui_mainwindow.h"
 #include "Bpublic.h"
 #include "Bffmpeg.h"
+#include "Bwidget.h"
 #include <QFileDialog>
 #include <QDebug>
 
@@ -25,7 +26,7 @@ MainWindow::MainWindow(QWidget *parent)
     this->setWindowTitle(QString("BPlay2.0"));
 
     /* 初始化开始/停止播放按钮 */
-    OnOffBbutton = ui->OnOffBbutton;
+    ui->BOnOffButton->setCheckable(true);  //new
 
     /* 进度条和播放时长 */
     ui->BPlaySlider->setValue(0);
@@ -114,6 +115,44 @@ MainWindow::MainWindow(QWidget *parent)
     });
 
     UpdateTimer.start(10);  //定视频没有播放时时器可以关闭，后期优化
+
+    /* 播放区鼠标单击事件处理 */
+    connect(ui->BPlayopenGLWidget, &Bwidget::widgetclick, this, [=](){
+        if (Bffmpeg::GetInstance()->GetFormatContext() == NULL) {
+            return;
+        }
+
+        if (ui->BOnOffButton->isChecked()) {
+            ui->BOnOffButton->setChecked(false);
+            Bffmpeg::GetInstance()->StopPlay();
+        } else {
+            ui->BOnOffButton->setChecked(true);
+            Bffmpeg::GetInstance()->StartPlay();
+        }
+    });
+
+    /* 播放区鼠标双击事件处理 */
+    connect(ui->BPlayopenGLWidget, &Bwidget::widgetDoubleclick, this, [=](){
+        isFull = !isFull;
+        if (isFull) {
+             ui->widget_2->hide();
+             ui->widget->hide();
+             showFullScreen();
+        } else {
+            ui->widget_2->show();
+            ui->widget->show();
+            showNormal();
+        }
+    });
+
+    /* 播放区文件拖入事件处理 */
+    connect(ui->BPlayopenGLWidget, &Bwidget::GetFile, this, &MainWindow::LoadMediaFileAndPlay);
+
+    /* 允许捕捉鼠标移动 */
+    setMouseTracking(true);
+    ui->centralwidget->setMouseTracking(true);
+    ui->widget_3->setMouseTracking(true);
+    ui->BPlayopenGLWidget->setMouseTracking(true);
 }
 
 /********************************
@@ -150,7 +189,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             int value = QStyle::sliderValueFromPosition(ui->BPlaySlider->minimum(), ui->BPlaySlider->maximum(), mouseEvent->pos().x(), ui->BPlaySlider->width());
             ui->BPlaySlider->setValue(value);
             Bffmpeg::GetInstance()->ResetTime(ui->BPlaySlider->value());
-            if (OnOffBbutton->GetButtonStatus()) {
+            if (ui->BOnOffButton->isChecked()) {
                 Bffmpeg::GetInstance()->StartPlay();
             }
         }
@@ -195,8 +234,92 @@ void MainWindow::on_BPlaySlider_sliderReleased()
 {
     BPlaySliderPress = false;
     Bffmpeg::GetInstance()->ResetTime(ui->BPlaySlider->value());
-    if (OnOffBbutton->GetButtonStatus()) {
+    if (ui->BOnOffButton->isChecked()) {
         Bffmpeg::GetInstance()->StartPlay();
+    }
+
+    return;
+}
+
+/********************************
+ * void MainWindow::LoadMediaFileAndPlay(QString filepath)
+ * 功能：打开文件并播放
+ * *****************************/
+void MainWindow::LoadMediaFileAndPlay(QString filepath)
+{
+    if (0 != Bffmpeg::GetInstance()->BLoadMediaFile(filepath)) {
+        /* 媒体文件获取失败 */
+        BLOG("Media File illegal");
+        QMessageBox::information(this, QString("错误"), QString("媒体文件非法！"));
+        return;
+    }
+
+    /* 初始化画布 */
+    ui->BPlayopenGLWidget->InitMedia(true);
+
+    /* 更新按钮状态,开启媒体播放 */
+    ui->BOnOffButton->setChecked(true);
+    Bffmpeg::GetInstance()->StartPlay();
+
+    /* 隐藏Bplay2.0图标 */
+    BPlayLable->hide();
+
+    return;
+}
+
+/********************************
+ * void MainWindow::wheelEvent(QWheelEvent *event)
+ * 功能：滚轮事件回调函数
+ * *****************************/
+void MainWindow::wheelEvent(QWheelEvent *event)
+{
+    if (event->delta() > 0) {
+        /* 增大音量 */
+        if (ui->BplayVolume->value() < 99) {
+            ui->BplayVolume->setValue(ui->BplayVolume->value() + 2);
+        } else if (ui->BplayVolume->value() == 99) {
+            ui->BplayVolume->setValue(100);
+        }
+    } else{
+        /* 降低音量 */
+        if (ui->BplayVolume->value() > 1) {
+            ui->BplayVolume->setValue(ui->BplayVolume->value() - 2);
+        } else if (ui->BplayVolume->value() == 1) {
+            ui->BplayVolume->setValue(0);
+        }
+    }
+
+    Baudio::GetInstance()->SetVolum(ui->BplayVolume->value() / 100.0);
+    BLOG("BplayVolume: %d", ui->BplayVolume->value());
+
+    return;
+}
+
+/********************************
+ * void MainWindow::mouseMoveEvent(QMouseEvent *event)
+ * 功能：鼠标移动事件回调函数(未点击也可感知)
+ * *****************************/
+void MainWindow::mouseMoveEvent(QMouseEvent *event)
+{
+    if (isFull) {
+        ui->widget_2->show();
+        ui->widget->show();
+        static QTimer *timer = NULL;
+
+        if (timer == NULL) {
+            timer = new QTimer;
+            connect(timer, &QTimer::timeout, this, [=](){
+                if (isFull) {
+                    ui->widget_2->hide();
+                    ui->widget->hide();
+                }
+                timer->stop();
+            });
+        } else {
+            timer->stop();
+        }
+
+        timer->start(3000);
     }
 
     return;
@@ -214,21 +337,46 @@ void MainWindow::on_Bopenfile_btn_clicked()
         return;
     }
 
-    if (0 != Bffmpeg::GetInstance()->BLoadMediaFile(FilePath)) {
-        /* 媒体文件获取失败 */
-        BLOG("Media File illegal");
-        QMessageBox::information(this, QString("错误"), QString("媒体文件非法！"));
+    LoadMediaFileAndPlay(FilePath);
+
+    return;
+}
+
+/********************************
+ * void MainWindow::on_BFullScreen_btn_clicked()
+ * 功能：全屏按钮点击回调函数
+ * *****************************/
+void MainWindow::on_BFullScreen_btn_clicked()
+{
+    isFull = !isFull;
+    if (isFull) {
+         ui->widget_2->hide();
+         ui->widget->hide();
+         showFullScreen();
+    } else {
+        ui->widget_2->show();
+        ui->widget->show();
+        showNormal();
+    }
+
+    return;
+}
+
+/********************************
+ * void MainWindow::on_BOnOffButton_clicked()
+ * 功能：开始/暂停按钮点击回调函数
+ * *****************************/
+void MainWindow::on_BOnOffButton_clicked()
+{
+    if (Bffmpeg::GetInstance()->GetFormatContext() == NULL) {
         return;
     }
 
-    /* 初始化画布 */
-    ui->BPlayopenGLWidget->InitMedia(true);
-
-    /* 更新按钮状态(开启) */
-    OnOffBbutton->SetButtonStatus(true);
-    
-    /* 隐藏Bplay2.0图标 */
-    BPlayLable->hide();
+    if (ui->BOnOffButton->isChecked()) {
+        Bffmpeg::GetInstance()->StartPlay();
+    } else {
+        Bffmpeg::GetInstance()->StopPlay();
+    }
 
     return;
 }

@@ -8,7 +8,6 @@
 
 #include <QMainWindow>
 #include <QMessageBox>
-#include <Bbutton.h>
 #include <QTimer>
 #include <QStyle>
 #include <QMouseEvent>
@@ -28,17 +27,22 @@ public:
     
 private slots:
     void on_Bopenfile_btn_clicked();
+    void on_BFullScreen_btn_clicked();
+    void on_BOnOffButton_clicked();
     void on_BPlaySlider_sliderPressed();
     void on_BPlaySlider_sliderReleased();
     void on_BPlaySlider_valueChanged();
     
 private:
     Ui::MainWindow *ui;
-    Bbutton *OnOffBbutton;           /* 开始/停止播放按钮 */
     QTimer UpdateTimer;              /* 进度条和播放时间刷新定时器 */
     bool BPlaySliderPress = false;   /* 进度条有无按下 */
+    bool isFull = false;             /* 是否为全屏状态 */
     QLabel *BPlayLable = NULL;       /* BPlay2.0图标 */
 
+    void LoadMediaFileAndPlay(QString filepath);
     void resizeEvent(QResizeEvent *event);
+    void mouseMoveEvent(QMouseEvent *event);
+    void wheelEvent(QWheelEvent *event);
 };
 #endif // MAINWINDOW_H

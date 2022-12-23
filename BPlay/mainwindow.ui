@@ -134,13 +134,7 @@
         <number>5</number>
        </property>
        <item>
-        <widget class="Bbutton" name="OnOffBbutton">
-         <property name="minimumSize">
-          <size>
-           <width>30</width>
-           <height>30</height>
-          </size>
-         </property>
+        <widget class="QPushButton" name="BOnOffButton">
          <property name="maximumSize">
           <size>
            <width>30</width>
@@ -157,14 +151,14 @@
          </property>
          <property name="iconSize">
           <size>
-           <width>30</width>
-           <height>30</height>
+           <width>23</width>
+           <height>23</height>
           </size>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QLabel" name="label">
+        <widget class="QLabel" name="BplayVolumeLabel">
          <property name="text">
           <string/>
          </property>
@@ -219,6 +213,35 @@
         </spacer>
        </item>
        <item>
+        <widget class="QPushButton" name="BFullScreen_btn">
+         <property name="minimumSize">
+          <size>
+           <width>30</width>
+           <height>30</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>30</width>
+           <height>30</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+         <property name="icon">
+          <iconset resource="Image.qrc">
+           <normaloff>:/BPlay/Image/FullScreen.png</normaloff>:/BPlay/Image/FullScreen.png</iconset>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>25</width>
+           <height>25</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QPushButton" name="Bopenfile_btn">
          <property name="text">
           <string>打开文件</string>
@@ -236,11 +259,6 @@
    <class>Bwidget</class>
    <extends>QOpenGLWidget</extends>
    <header>bwidget.h</header>
-  </customwidget>
-  <customwidget>
-   <class>Bbutton</class>
-   <extends>QPushButton</extends>
-   <header location="global">bbutton.h</header>
   </customwidget>
  </customwidgets>
  <resources>

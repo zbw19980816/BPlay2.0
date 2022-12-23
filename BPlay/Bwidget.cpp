@@ -4,6 +4,9 @@
  * *****************************/
 
 #include "Bwidget.h"
+#include <QDragEnterEvent>
+#include <QMimeData>
+#include <QTimer>
 
 /********************************
  * Bwidget::Bwidget(QWidget *parent) : QOpenGLWidget(parent)
@@ -12,6 +15,7 @@
 Bwidget::Bwidget(QWidget *parent) : QOpenGLWidget(parent)
 {
     TimerID = startTimer(1);
+    setAcceptDrops(true);    /* 允许拖拽事件 */
 }
 
 /********************************
@@ -21,6 +25,81 @@ Bwidget::Bwidget(QWidget *parent) : QOpenGLWidget(parent)
 void Bwidget::resizeEvent(QResizeEvent *event)
 {
     QOpenGLWidget::resizeEvent(event);
+    return;
+}
+
+/********************************
+ * void Bwidget::mousePressEvent(QMouseEvent *event)
+ * 功能：Bwidget鼠标按下事件
+ * *****************************/
+void Bwidget::mousePressEvent(QMouseEvent *event)
+{
+    if (event->button() == Qt::LeftButton) {
+        /* 只处理左键 */
+        static QTimer *timer = NULL;
+
+        if (timer == NULL) {
+            timer = new QTimer;
+            isDoubleClick = false;
+            connect(timer, &QTimer::timeout, [=](){
+                if (!isDoubleClick) {
+                    emit widgetclick();
+                }
+                isDoubleClick = false;
+                timer->stop();
+            });
+        } else {
+            timer->stop();
+        }
+
+        timer->start(300);
+    }
+    return;
+}
+
+/********************************
+ * void Bwidget::mouseDoubleClickEvent(QMouseEvent *event)
+ * 功能：Bwidget鼠标双击事件
+ * *****************************/
+void Bwidget::mouseDoubleClickEvent(QMouseEvent *event)
+{
+    if (event->button() == Qt::LeftButton) {
+        /* 触发自定义鼠标双击信号 */
+        isDoubleClick = true;
+        emit widgetDoubleclick();
+        return;
+    }
+}
+
+/********************************
+ * void Bwidget::dragEnterEvent(QDragEnterEvent* event)
+ * 功能：拖拽进入事件
+ * *****************************/
+void Bwidget::dragEnterEvent(QDragEnterEvent* event)
+{
+    if (event->mimeData()->hasUrls()) {
+        /* 有拖拽文件时设置接受 */
+        event->acceptProposedAction();
+    }
+
+    return;
+}
+
+/********************************
+ * void Bwidget::dropEvent(QDropEvent *event)
+ * 功能：件拖拽放下事件
+ * tip:该方法需要和dragEnterEvent、setAcceptDrops(true)配合才可以生效
+ * *****************************/
+void Bwidget::dropEvent(QDropEvent *event)
+{
+    if (event->mimeData()->hasUrls()) {
+        QList<QUrl> urls = event->mimeData()->urls();
+        if(!urls.isEmpty()) {
+            /* 触发获取到文件信号 */
+            emit GetFile(urls.first().toLocalFile());
+        }
+    }
+
     return;
 }
 
@@ -41,6 +120,10 @@ void Bwidget::timerEvent(QTimerEvent *event)
     this->update();
 }
 
+/********************************
+ * void Bwidget::paintPic(AVFrame* frame)
+ * 功能：绘制图像
+ * *****************************/
 void Bwidget::paintPic(AVFrame* frame)
 {
     if (NULL == frame) {
@@ -82,9 +165,10 @@ void Bwidget::paintPic(AVFrame* frame)
 
     return;
 }
+
 /********************************
  * void Bwidget::paintEvent(QPaintEvent *event)
- * 功能：绘制一帧图像
+ * 功能：解码数据送显
  * *****************************/
 void Bwidget::paintEvent(QPaintEvent *event)
 {

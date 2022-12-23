@@ -10,7 +10,6 @@ DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs depr
 
 SOURCES += \
     Baudio.cpp \
-    Bbutton.cpp \
     Bffmpeg.cpp \
     Bpublic.cpp \
     Bvideo.cpp \
@@ -20,7 +19,6 @@ SOURCES += \
 
 HEADERS += \
     Baudio.h \
-    Bbutton.h \
     Bffmpeg.h \
     Bpublic.h \
     Bvideo.h \
